@@ -1,11 +1,20 @@
-use std::{collections::VecDeque, sync::{Arc, Mutex}, thread, time::Duration};
+use std::{
+    collections::VecDeque,
+    sync::{Arc, Mutex, mpsc::Receiver},
+    thread,
+    time::Duration,
+};
 
 use arboard::Clipboard;
 
 const POLLING_RATE_MS: u64 = 500;
 const MAX_ITEMS: usize = 5;
 
-pub fn start_watcher(contents: Arc<Mutex<VecDeque<String>>>) {
+pub enum ClipboardCommand {
+    Set(String),
+}
+
+pub fn start_watcher(contents: Arc<Mutex<VecDeque<String>>>, rx: Receiver<ClipboardCommand>) {
     thread::spawn(move || {
         let mut clipboard = Clipboard::new().expect("Error getting clipboard");
         let mut last: String = String::new();
@@ -13,8 +22,20 @@ pub fn start_watcher(contents: Arc<Mutex<VecDeque<String>>>) {
         loop {
             thread::sleep(Duration::from_millis(POLLING_RATE_MS));
 
+            while let Ok(cmd) = rx.try_recv() {
+                match cmd {
+                    ClipboardCommand::Set(text) => {
+                        if let Err(err) = clipboard.set_text(&text) {
+                            eprintln!("Error setting clipboard text: {err:?}")
+                        }
+                        
+                        last = text;
+                    }
+                }
+            }
+
             let Ok(clipboard_text) = clipboard.get_text() else {
-                println!("Error getting clipboard text");
+                eprintln!("Error getting clipboard text");
                 continue;
             };
 
