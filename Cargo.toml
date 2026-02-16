@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 arboard = { version = "3.6.1", features = ["wayland-data-control"] }
 eframe = "0.33.3"
+fs2 = "0.4.3"

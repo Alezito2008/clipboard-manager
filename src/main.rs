@@ -8,13 +8,22 @@ use std::{
 
 mod app;
 mod clipboard;
+mod file_lock;
 
 use app::MyApp;
 use eframe::egui;
 
-use crate::clipboard::ClipboardCommand;
+use crate::{clipboard::ClipboardCommand, file_lock::SingleInstance};
 
 fn main() -> eframe::Result {
+    let _instance = match SingleInstance::acquire() {
+        Some(instance) => instance,
+        None => {
+            println!("Instance already running!");
+            return Ok(())
+        }
+    };
+
     let contents = Arc::new(Mutex::new(VecDeque::<String>::new()));
     let (tx, rx): (Sender<ClipboardCommand>, Receiver<ClipboardCommand>) = mpsc::channel();
 
@@ -22,6 +31,7 @@ fn main() -> eframe::Result {
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
+            .with_visible(false)
             .with_inner_size((300.0, 500.0))
             .with_decorations(false)
             .with_movable_by_background(true)
